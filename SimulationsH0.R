@@ -1,85 +1,135 @@
-## R script to reproduce Figure 1 in Section 4.1.1.
-###################################################
+# Simulations under the null hypothesis
+#######################################
 
 source("SimulationSetup.R")
 
 nrep <- 1000
-n_cores <- 18
+n_cores <- 70
 
-n_vec <- c(25, 50, 75, 100, 150, 200, 250, 300, 400, 500)
 
-data_H0 <- data.frame(matrix(NA, ncol = 6, nrow = length(n_vec) * 4))
-colnames(data_H0) <- c("n", "overidentified", "heteroskedastic", "rr_RP_het", "rr_RP_hom", "rr_J")
+###########################
+# Simulation with varying n
+###########################
+
+
+n_vec <- c(50, 100, 150, 200, 250, 300, 400, 500)
+n_control_vec <- c(0, 2)
+n_IV_vec <- c(1, 2)
+iv_strength_vec <- c(1)
+heteroskedastic_vec <- c(FALSE, TRUE)
+
+data_H0 <- data.frame(matrix(NA, ncol = 13, nrow = length(n_vec) * length(n_control_vec) * length(n_IV_vec) * length(iv_strength_vec) * length(heteroskedastic_vec)))
+colnames(data_H0) <- c("n", "n_control", "n_iv", "iv_strength", "heteroskedastic", "RP_hom", "RP_het", "J", "smooth_asymp", "smooth_boot", "weakRP_hom", "weakRP_het", "ICM")
+
 
 
 RNGkind("L'Ecuyer-CMRG")
 set.seed(915)
 row_count <- 1
+
 for(n in n_vec){
-  for(overidentified in c(FALSE, TRUE)){
-    for(heteroskedastic in c(FALSE, TRUE)){
-      data_H0[row_count, 4:6] <- calc_rej_rates(nrep, n_cores, n, overidentified, heteroskedastic, gamma = 0, violation = "Z_squared", sig_level = 0.05)
-      data_H0[row_count, 1] <- n
-      data_H0[row_count, 2] <- overidentified
-      data_H0[row_count ,3] <- heteroskedastic
-      row_count <- row_count + 1
+  for(n_control in n_control_vec){
+    for(n_IV in n_IV_vec){
+      for(iv_strength in iv_strength_vec){
+        for(heteroskedastic in heteroskedastic_vec){
+          data_H0$n[row_count] <- n
+          data_H0$n_control[row_count] <- n_control
+          data_H0$n_iv[row_count] <- n_IV
+          data_H0$iv_strength[row_count] <- iv_strength
+          data_H0$heteroskedastic[row_count] <- heteroskedastic
+          rej_rates <- calc_rej_rates(nrep, n_cores, n, n_control, n_IV, iv_strength, heteroskedastic, gamma = 0, violation = "Z_squared", sig_level = 0.05)
+          data_H0[row_count, 6:13] <- rej_rates
+          row_count <- row_count + 1
+        }
+      }
     }
   }
   # save intermediate results
-  save(data_H0, file = paste("SimulationResults/H0_n_", n, ".RData", sep = ""))
+  save(data_H0, file = paste0("SimulationResults/H0_vary_n/row_", row_count, ".RData"))
 }
 
 
-# plot
-library(ggplot2)
-library(dplyr)
-library(tidyr)
 
-load("SimulationResults/H0_n_500.RData")
+#####################################
+# Simulation with varying IV strength
+#####################################
 
-r025 <- qbinom(0.025, size = nrep, prob = 0.05)/nrep
-r975 <- qbinom(0.975, size = nrep, prob = 0.05)/nrep
 
-data_H0 <- data_H0 %>%
-  mutate(
-    id_type = ifelse(overidentified, "overidentified", "just-identified"),
-    het_type = ifelse(heteroskedastic, "heteroskedastic", "homoskedastic"),
-    panel = factor(paste(id_type, het_type, sep = ",\n"),
-                   levels = c("just-identified,\nhomoskedastic",
-                              "overidentified,\nhomoskedastic",
-                              "just-identified,\nheteroskedastic",
-                              "overidentified,\nheteroskedastic"))
-  )
+n_vec <- c(300)
+n_control_vec <- c(0, 2)
+n_IV_vec <- c(1, 2)
+iv_strength_vec <- c(0, 0.1, 0.2, 0.4, 0.6, 0.8, 1)
+heteroskedastic_vec <- c(FALSE, TRUE)
 
-data_long <- data_H0 %>%
-  select(n, rr_RP_het, rr_RP_hom, rr_J, panel) %>%
-  pivot_longer(cols = c(rr_RP_het, rr_RP_hom, rr_J),
-               names_to = "method",
-               values_to = "rejection_rate") %>%
-  mutate(method = factor(method,
-                         levels = c("rr_RP_het", "rr_RP_hom", "rr_J"),
-                         labels = c("RP Het.", "RP Hom.", "Overid. J")))
+data_H0 <- data.frame(matrix(NA, ncol = 13, nrow = length(n_vec) * length(n_control_vec) * length(n_IV_vec) * length(iv_strength_vec) * length(heteroskedastic_vec)))
+colnames(data_H0) <- c("n", "n_control", "n_iv", "iv_strength", "heteroskedastic", "RP_hom", "RP_het", "J", "smooth_asymp", "smooth_boot", "weakRP_hom", "weakRP_het", "ICM")
 
-line_types <- c("RP Het." = "solid", "RP Hom." = "dashed", "Overid. J" = "dotted")
 
-ggplot(data_long, aes(x = n, y = rejection_rate, linetype = method)) +
-  geom_hline(yintercept = 0.05, color = "grey") +
-  geom_hline(yintercept = r025, linetype = "dashed", color = "grey") +
-  geom_hline(yintercept = r975, linetype = "dashed", color = "grey") +
-  geom_line(linewidth = 0.5) +
-  scale_linetype_manual(values = line_types) +
-  facet_wrap(~ panel, scales = "free_y") +
-  labs(x = "n", y = "Rejection Rate", linetype = "Method") +
-  theme_bw() +
-  theme(
-    strip.text = element_text(face = "bold"),
-    plot.title = element_text(hjust = 0.5, face = "bold"),
-    legend.position = "bottom",
-    legend.title = element_blank(),
-    panel.spacing = unit(1, "lines"),
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    axis.text = element_text(size = 8),
-    axis.title = element_text(size = 10)
-  )
 
-ggsave("Plots/H0.pdf", width = 5.5, height = 4)
+RNGkind("L'Ecuyer-CMRG")
+set.seed(915)
+row_count <- 1
+
+for(n in n_vec){
+  for(n_control in n_control_vec){
+    for(n_IV in n_IV_vec){
+      for(iv_strength in iv_strength_vec){
+        for(heteroskedastic in heteroskedastic_vec){
+          data_H0$n[row_count] <- n
+          data_H0$n_control[row_count] <- n_control
+          data_H0$n_iv[row_count] <- n_IV
+          data_H0$iv_strength[row_count] <- iv_strength
+          data_H0$heteroskedastic[row_count] <- heteroskedastic
+          rej_rates <- calc_rej_rates(nrep, n_cores, n, n_control, n_IV, iv_strength, heteroskedastic, gamma = 0, violation = "Z_squared", sig_level = 0.05)
+          data_H0[row_count, 6:13] <- rej_rates
+          row_count <- row_count + 1
+        }
+        # save intermediate results
+        save(data_H0, file = paste0("SimulationResults/H0_vary_iv_strength/row_", row_count, ".RData"))
+      }
+    }
+  }
+}
+
+
+#######################################
+# Simulation with varying number of IVs
+#######################################
+
+
+n_vec <- c(300)
+n_control_vec <- c(0, 2)
+n_IV_vec <- c(5, 10, 15, 20, 25)
+iv_strength_vec <- c(1)
+heteroskedastic_vec <- c(FALSE, TRUE)
+
+data_H0 <- data.frame(matrix(NA, ncol = 13, nrow = length(n_vec) * length(n_control_vec) * length(n_IV_vec) * length(iv_strength_vec) * length(heteroskedastic_vec)))
+colnames(data_H0) <- c("n", "n_control", "n_iv", "iv_strength", "heteroskedastic", "RP_hom", "RP_het", "J", "smooth_asymp", "smooth_boot", "weakRP_hom", "weakRP_het", "ICM")
+
+
+
+RNGkind("L'Ecuyer-CMRG")
+set.seed(915)
+row_count <- 1
+
+for(n in n_vec){
+  for(n_control in n_control_vec){
+    for(n_IV in n_IV_vec){
+      for(iv_strength in iv_strength_vec){
+        for(heteroskedastic in heteroskedastic_vec){
+          data_H0$n[row_count] <- n
+          data_H0$n_control[row_count] <- n_control
+          data_H0$n_iv[row_count] <- n_IV
+          data_H0$iv_strength[row_count] <- iv_strength
+          data_H0$heteroskedastic[row_count] <- heteroskedastic
+          rej_rates <- calc_rej_rates(nrep, n_cores, n, n_control, n_IV, iv_strength, heteroskedastic, gamma = 0, violation = "Z_squared", sig_level = 0.05)
+          data_H0[row_count, 6:13] <- rej_rates
+          row_count <- row_count + 1
+        }
+      }
+      # save intermediate results
+      save(data_H0, file = paste0("SimulationResults/H0_vary_n_iv/row_", row_count, ".RData"))
+    }
+  }
+}
+

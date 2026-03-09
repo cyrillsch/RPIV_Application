@@ -1,13 +1,23 @@
-## Implementation of "Smooth test" by Delgado, Dominguez and Lavegne, 2006 in the setting of linear IV models
-smooth_Test <- function(Y, X, C = NULL, Z,  h, B = 999){
+# Implementation of the "Smooth Test" from 
+# Delgado, M., Dominguez, M. A. & Lavergne, P. (2006), ‘Consistent tests of conditional
+# moment restrictions’, Annals of Economics and Statistics (81), 33–67.
+# in the setting of linear IV models.
+# We only consider the p-value based on a normal approximation.
+# We add C to both Z and X before applying the method.
+# There is no clear guideline for the choice of bandwidth.
+# We standardize the components of Z and use Silverman's rule of thumb bandwidth.
+smooth_Test <- function(Y, X, C = NULL, Z, B = 999){
   n <- length(Y)
   Xbar <- cbind(rep(1,n), X, C)
   Zbar <- cbind(Z, C)
+  Zbar <- apply(as.matrix(Zbar), 2, scale, center = FALSE)
+  q <- ncol(Zbar)
+  # Silverman's rule of thumb (because the components of Zbar are standardized)
+  h <- (4/(q+2))^(1/(q+4))/n^(1/(q+4))
   Xhat <- lm(Xbar ~ Zbar)$fitted.values
   beta <- lm(Y ~ -1 + Xhat)$coefficients
   psi <- Y - Xhat %*% beta
   D2 <- as.matrix(dist(Zbar))^2
-  q <- ncol(Zbar)
   K <- (2 * pi)^(-q / 2) * exp(-D2 / (2 * h^2))
   diag(K) <- 0
   calc_stat <- function(psi0){
@@ -20,7 +30,7 @@ smooth_Test <- function(Y, X, C = NULL, Z,  h, B = 999){
   w_points <- c(-(sqrt(5) -1)/2, (sqrt(5) + 1)/2)
   weights <- matrix(sample(w_points, n * B, replace = TRUE, prob = w_probs), nrow = n)
   TBoot <- apply(weights, 2, function(wrow){calc_stat(psi * wrow)})
-  K2psi2 <- K^2 %*% psi^2
+  K2psi2 <- (K^2) %*% (psi^2)
   Vn <- 2 * sum(psi^2 * K2psi2)/(h^q * n * (n-1))
   tn <- n * h^(q/2) * Tn / Vn^(0.5)
   tBoot <- n * h^(q/2) * TBoot / Vn^(0.5)
@@ -31,8 +41,11 @@ smooth_Test <- function(Y, X, C = NULL, Z,  h, B = 999){
 
 
 
-## implementation of approach from Antoine and Lavergne 2023
-
+# Implementation of ICM test from
+# Antoine, B. & Lavergne, P. (2023), ‘Identification-robust nonparametric inference in a linear
+# IV model’, Journal of Econometrics 235(1), 1–24.
+# The function returns a function that can be evaluated at particular
+# betas to calculate p-values.
 ICM_test <- function(Y, X, C = NULL, Z, B = 499){
   ## Influence of exogenous control variables is projected out according to paper
   if(is.null(C)){
@@ -46,8 +59,7 @@ ICM_test <- function(Y, X, C = NULL, Z, B = 499){
   }
   n <- length(Y)
   ## Authors "recommend to scale the exogenous instruments by a measure of dispersion, such
-  ## as their ampirical standard deviation", although I am not sure if they are applying this in
-  ## their simulations.
+  ## as their empirical standard deviation"
   Z <- apply(as.matrix(Z), 2, scale, center = FALSE)
   d <- NCOL(Z)
   ## first step: estimate conditional variance Omega(z).
@@ -71,7 +83,7 @@ ICM_test <- function(Y, X, C = NULL, Z, B = 499){
   Omega <- apply(Omega_cond, c(1,2), sum) / n
   
   ## Second step: calculate test statistic.
-  ## We need the function w(). The authors only specify that w() is a triangle density
+  ## We need the function w(). The authors specify that w() is a triangle density
   ## At a different place, they specify that it is imposed that the squared integral of w() equals one. 
   ## But the normalization is just scaling and not important. More important is the choice of the support of w,
   ## but there is no indication about this. Also, we assume that a triangle density
