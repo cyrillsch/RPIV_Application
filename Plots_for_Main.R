@@ -207,7 +207,7 @@ p_niv <- ggplot(
   geom_hline(yintercept = 0.05, color = "grey") +
   geom_hline(yintercept = r025, linetype = "dashed", color = "grey") +
   geom_hline(yintercept = r975, linetype = "dashed", color = "grey") +
-  coord_cartesian(ylim = c(0, 0.3)) +
+  coord_cartesian(ylim = c(0, 1)) +
   theme_bw() +
   theme(
     strip.text = element_text(face = "bold", size = 10),
