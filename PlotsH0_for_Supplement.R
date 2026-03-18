@@ -115,8 +115,7 @@ plot_results <- function(sim){
       legend.title = element_blank(),
       axis.text.x = element_text(angle = 45, hjust = 1),
       panel.spacing = unit(0.8, "lines")
-    ) + 
-    {if(sim == "vary_n_iv") coord_cartesian(ylim = c(0, 0.3)) else NULL}
+    )
   if(sim == "vary_n"){
     ggsave("Plots/H0_vary_n.pdf", width = 8.5, height = 5)
   }
