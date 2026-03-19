@@ -13,4 +13,4 @@ This repository contains the code for reproducing the plots and the tables in th
 
 - The files `PlotsH0_for_Supplement.R`, `PlotsHA_for_Supplement.R` and `PlotsPower_for_Supplement.R` produce the plots in Sections D.3, D.4 and D.5 of the supplement based on the simulation results.
 
-
+- The files `SimulationSetupCluster.R`, `SimulationsCluster.R` and `PlotsCluster.R` contain code to run the simulations and produce the plots in Section F of the supplement.
