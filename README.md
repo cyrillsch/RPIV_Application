@@ -1,6 +1,6 @@
 # A Residual Prediction Test for the Well-Specification of Linear Instrumental Variable Models
 This repository contains the code for reproducing the plots and the tables in the paper 
-<i>Cyrill Scheidegger, Malte Londschien and Peter Bühlmann (2025). A residual prediction test for the well-specification of linear instrumental variable models, arXiv:2506.12771</i>.
+<i>Cyrill Scheidegger, Malte Londschien and Peter Bühlmann (2025). Machine-learning-powered specification testing in linear instrumental variable models, arXiv:2506.12771</i>.
 
 
 - The files `SimulationSetup.R` and `AdditionalImplementations.R` contain code that is sourced in the simulations.
